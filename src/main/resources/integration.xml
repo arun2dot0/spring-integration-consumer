@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans:beans 	xmlns:int="http://www.springframework.org/schema/integration"
+	xmlns:http="http://www.springframework.org/schema/integration/http"
+ xmlns:ws="http://www.springframework.org/schema/integration/ws"
+ xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+ xmlns:beans="http://www.springframework.org/schema/beans"
+ xmlns:context="http://www.springframework.org/schema/context"
+ xmlns:si-xml="http://www.springframework.org/schema/integration/xml"
+  xmlns:oxm = "http://www.springframework.org/schema/oxm"
+	xsi:schemaLocation="
+		http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/integration http://www.springframework.org/schema/integration/spring-integration.xsd
+		http://www.springframework.org/schema/integration/http http://www.springframework.org/schema/integration/http/spring-integration-http.xsd
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
+  		http://www.springframework.org/schema/integration/ws http://www.springframework.org/schema/integration/ws/spring-integration-ws.xsd
+    	http://www.springframework.org/schema/integration/xml http://www.springframework.org/schema/integration/xml/spring-integration-xml.xsd
+    	http://www.springframework.org/schema/oxm http://www.springframework.org/schema/oxm/spring-oxm.xsd">
+ 
+
+<!-- <beans:bean id="myManager"
+     class="com.my.services.manager.MyServiceImpl" >
+    <beans:property name="myService" ref="myService" />
+ </beans:bean>
+  -->
+  <beans:bean id="MyWSTransformer"
+     class="com.my.services.transformer.MyWSTransformer" />
+ 
+ <beans:bean id="MY.SOAP-MessageSender"
+  class="org.springframework.ws.transport.http.HttpComponentsMessageSender">
+  <beans:property name="connectionTimeout" value="3000" />
+  <beans:property name="readTimeout" value="5000" />
+ </beans:bean>
+ 
+  <int:publish-subscribe-channel id="myService_routingChannel" />
+  
+ <int:gateway id="myService" service-interface="com.my.services.api.MyService"
+  default-request-channel="myService_routingChannel">
+  <int:method name="countryRequest">
+   <int:header name="REQUEST_TYPE" value="countryRequest" />
+  </int:method>
+ </int:gateway>
+  
+ <int:header-value-router input-channel="myService_routingChannel" header-name="REQUEST_TYPE">
+  <int:mapping value="countryRequest" channel="myService_countryRequestChannel" />
+ </int:header-value-router>
+ 
+ <int:channel id="myService_countryRequestChannel" />
+ 
+ <int:chain input-channel="myService_countryRequestChannel"
+output-channel="myService_countryRequestOutputChannel" >
+ 
+  <int:service-activator ref="MyWSTransformer"
+   method="countryRequestSOAPRequest" />
+ 
+  <!--  <ws:header-enricher>
+   <ws:soap-action value="" />
+  </ws:header-enricher> -->
+ 
+  <ws:outbound-gateway
+   uri="http://localhost:8080/ws"
+   message-sender="MY.SOAP-MessageSender"  unmarshaller="myrequestJAXBUnMarshaller"/>
+ </int:chain>
+ 
+ 
+   <si-xml:unmarshalling-transformer id="countryRequestUnmarshaller"
+  input-channel="myService_countryRequestOutputChannel"
+  unmarshaller="myrequestJAXBUnMarshaller" />
+ 
+   <oxm:jaxb2-marshaller id = "myrequestJAXBUnMarshaller">
+    <oxm:class-to-be-bound name = "io.spring.guides.gs_producing_web_service.GetCountryResponse"/>
+   <oxm:class-to-be-bound name = "io.spring.guides.gs_producing_web_service.Country"/>
+   <oxm:class-to-be-bound name = "io.spring.guides.gs_producing_web_service.Currency"/>
+  <!--   <oxm:class-to-be-bound name = "io.spring.guides.gs_producing_web_service.GetCountryRequest"/> -->
+  
+ </oxm:jaxb2-marshaller>  
+ 
+ 
+</beans:beans>
